@@ -33,7 +33,8 @@ without tying itself to Rails or to any asset pipeline:
 gem 'vue_live'
 ```
 
-Requires Ruby 3.0+.  Node.js is **not** required unless you opt into the Node backend.
+Requires Ruby 3.0+.  Node.js is **not** required unless you opt into the Node backend (any
+maintained Node.js works; see the TypeScript note below).
 
 ## Quick start: Rails
 
@@ -173,7 +174,7 @@ Under Rails the helpers are `html_safe` and pick up the CSP nonce automatically.
 | `<template>` | string, compiled in the browser (needs Vue's full build) | render function (runtime-only Vue build is enough) |
 | `<script>` | yes | yes |
 | `<script setup>` | no | yes |
-| `<script lang="ts">` | no | yes (types stripped by Node >= 22.13, esbuild, Babel, sucrase or TypeScript < 7) |
+| `<script lang="ts">` | no | yes (types stripped by Node >= 22.13 itself, or by sucrase, esbuild, Babel or TypeScript < 7) |
 | `<style>`, `<style scoped>` | yes (`:deep`, `:slotted`, `:global`) | yes |
 | `<style lang="scss">`, `<style module>`, `<template lang="pug">` | no | yes, with the npm packages installed |
 | `src="..."` on blocks | yes | yes |
@@ -195,6 +196,12 @@ vue-live node-setup                 # npm/yarn add @vue/compiler-sfc vue
 vue-live node-setup --with sass     # plus preprocessors you use
 bin/rails vue_live:node_setup       # the same, under Rails
 ```
+
+**TypeScript.**  Node.js 22.13+ strips types itself.  On older Node.js a transpiler package is
+needed; `vue-live node-setup` adds [sucrase](https://github.com/alangpierce/sucrase) automatically
+in that case (pure JavaScript, keeps line numbers so source maps stay exact), and
+`VUE_LIVE_TS_TRANSPILER=node|sucrase|esbuild|typescript|babel` pins one when several are installed.
+`vue-live check` warns when a Node.js that cannot strip types has no transpiler installed.
 
 If the [webpacker_cli](https://github.com/danielpclark/webpacker-cli) gem is installed its package
 manager detection is reused, so projects already built with it need nothing extra.  Installing

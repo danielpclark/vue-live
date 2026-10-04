@@ -53,6 +53,14 @@ module VueLiveTestHelpers
     VueLive::Compiler::Node.available?(cfg)
   end
 
+  def with_env(pairs)
+    saved = pairs.to_h { |k, _| [k, ENV.fetch(k, nil)] }
+    pairs.each { |k, v| v.nil? ? ENV.delete(k) : ENV[k] = v }
+    yield
+  ensure
+    saved.each { |k, v| v.nil? ? ENV.delete(k) : ENV[k] = v }
+  end
+
   # A Chromium playwright-core can launch: PLAYWRIGHT_CHROMIUM, or the browser `rake test:setup`
   # downloaded.  nil when neither exists.
   def chromium_path

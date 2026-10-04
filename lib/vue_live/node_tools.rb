@@ -10,6 +10,11 @@ module VueLive
   # project layout); otherwise a yarn.lock / package-lock.json sniff decides between yarn and npm.
   module NodeTools
     PACKAGES = ['@vue/compiler-sfc', 'vue'].freeze
+    # Node.js versions from here on strip TypeScript types themselves (node:module#stripTypeScriptTypes).
+    TYPE_STRIPPING_NODE = [22, 13].freeze
+    # npm packages compile.js can strip TypeScript with, when Node cannot.
+    TS_TRANSPILERS = %w[sucrase esbuild typescript @babel/core].freeze
+    DEFAULT_TS_TRANSPILER = 'sucrase'
 
     module_function
 
@@ -27,6 +32,20 @@ module VueLive
       status.success? ? out.strip : nil
     rescue Errno::ENOENT
       nil
+    end
+
+    # true when the installed Node strips TypeScript on its own (>= 22.13).
+    def node_strips_types?(config = VueLive.config)
+      version = node_version(config)
+      return false unless version
+
+      major, minor = version.delete_prefix('v').split('.').map(&:to_i)
+      major > TYPE_STRIPPING_NODE[0] || (major == TYPE_STRIPPING_NODE[0] && minor >= TYPE_STRIPPING_NODE[1])
+    end
+
+    # The TypeScript transpiler packages installed under +root+.
+    def installed_ts_transpilers(root = VueLive.config.root)
+      TS_TRANSPILERS.select { |pkg| File.directory?(File.join(root, 'node_modules', *pkg.split('/'))) }
     end
 
     def package_manager(root = VueLive.config.root)
@@ -76,6 +95,11 @@ module VueLive
       if %i[node].include?(config.compiler.to_sym)
         problems << 'Node.js was not found in PATH (required by compiler: node)' unless node_version(config)
         problems << '@vue/compiler-sfc is not installed (run `vue-live node-setup`)' unless compiler_sfc_version(config.root)
+      end
+      if %i[node auto].include?(config.compiler.to_sym) && node_version(config) && !node_strips_types?(config) &&
+         installed_ts_transpilers(config.root).empty?
+        problems << "Node.js #{node_version(config)} cannot strip TypeScript and no transpiler is installed; " \
+                    '<script lang="ts"> components will fail (run `vue-live node-setup --with sucrase`)'
       end
       problems
     end

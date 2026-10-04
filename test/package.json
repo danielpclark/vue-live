@@ -6,6 +6,7 @@
     "@vue/compiler-sfc": "^3.5.0",
     "playwright-core": "^1.50.0",
     "sass": "^1.80.0",
+    "sucrase": "^3.35.1",
     "vue": "^3.5.0"
   }
 }

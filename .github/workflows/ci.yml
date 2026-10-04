@@ -12,6 +12,12 @@ jobs:
       fail-fast: false
       matrix:
         ruby: ['3.0', '3.2', '3.3', '3.4']
+        node: ['22']
+        include:
+          # Node 20 has no built-in TypeScript stripper: exercises the sucrase path (issue #3).
+          - ruby: '3.3'
+            node: '20'
+    name: test (ruby ${{ matrix.ruby }}, node ${{ matrix.node }})
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
@@ -20,7 +26,7 @@ jobs:
           bundler-cache: true
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: ${{ matrix.node }}
       - name: Install Node packages and Chromium for the Node-backend and browser tests
         run: |
           bundle exec rake test:setup

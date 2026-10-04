@@ -20,7 +20,8 @@ module VueLive
         compile      Write static .vue.js modules + manifest.json  (--out DIR, default public/vue)
         clobber      Remove precompiled output and the compile cache
         check        Verify configuration, components and the Node toolchain
-        node-setup   Install @vue/compiler-sfc and vue  (--with pkg[,pkg]  e.g. --with typescript,sass)
+        node-setup   Install @vue/compiler-sfc and vue  (--with pkg[,pkg]  e.g. --with sass,esbuild);
+                       adds the sucrase TypeScript transpiler when Node.js < 22.13
         info         Show versions and resolved settings
         version      Show the vue_live version
 
