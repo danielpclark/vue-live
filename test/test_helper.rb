@@ -4,6 +4,7 @@ $LOAD_PATH.unshift File.expand_path('../lib', __dir__)
 ENV['VUE_LIVE_ENV'] ||= 'test'
 
 require 'minitest/autorun'
+require 'minitest/mock' # Object#stub, used by the NodeTools tests
 require 'tmpdir'
 require 'fileutils'
 require 'logger'
