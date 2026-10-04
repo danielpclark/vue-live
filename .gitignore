@@ -1,0 +1,9 @@
+/.bundle/
+/pkg/
+/tmp/
+/coverage/
+/doc/
+/spec/reports/
+Gemfile.lock
+node_modules/
+*.gem
