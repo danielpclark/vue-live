@@ -83,7 +83,8 @@ class CompilerTest < Minitest::Test
 
   def test_src_attributes_resolve_siblings
     src = File.read(File.join(FIXTURES, 'app/vue/Srcs.vue'))
-    r = VueLive::Compiler.compile(src, relative_path: 'Srcs.vue', absolute_path: File.join(FIXTURES, 'app/vue/Srcs.vue'), config: @config)
+    r = VueLive::Compiler.compile(src, relative_path: 'Srcs.vue', absolute_path: File.join(FIXTURES, 'app/vue/Srcs.vue'),
+                                       config: @config)
     assert_includes r.code, '__sfc__.template = "<em class=\"e\">{{ x }}<\/em>"'
     assert_match(/\.e\[data-v-/, r.css)
     assert_equal 2, r.dependencies.size
@@ -92,8 +93,20 @@ class CompilerTest < Minitest::Test
   def test_src_outside_root_is_forbidden
     assert_raises(VueLive::ForbiddenPath) do
       VueLive::Compiler.compile('<template src="../../../etc/passwd"></template>', relative_path: 'E.vue',
-                                absolute_path: File.join(FIXTURES, 'app/vue/E.vue'), config: @config)
+                                                                                   absolute_path: File.join(FIXTURES, 'app/vue/E.vue'), config: @config)
     end
+  end
+
+  def test_ruby_backend_source_map_lines
+    r = compile("<template>\n  <p/>\n</template>\n<script>\nimport x from './x.js'\nexport default { x }\n</script>")
+    map = r.source_map
+    assert_equal 3, map['version']
+    assert_equal ['X.vue'], map['sources']
+    assert_equal 'X.vue.js', map['file']
+    # generated line 1 ("") is source line 4, line 2 (import) is 5, line 3 (const __sfc__) is 6
+    assert_equal 'AAGA;AACA;AACA', map['mappings']
+    @config.source_maps = false
+    assert_nil compile('<template><a/></template><script>export default {}</script>').source_map
   end
 
   def test_unknown_compiler

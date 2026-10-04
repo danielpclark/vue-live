@@ -24,7 +24,7 @@ class MiddlewareTest < Minitest::Test
     assert_equal 'text/javascript; charset=utf-8', last_response.headers['content-type']
     assert_equal 'ruby', last_response.headers['x-vue-live']
     assert_includes last_response.body, '__sfc__.template'
-    assert_includes last_response.body, "from './nested/Child.vue.js'"
+    assert_match(%r{from './nested/Child\.vue\.js\?v=[0-9a-f]{16}'}, last_response.body)
     body = last_response.body
     get '/vue/App.vue.js'
     assert_equal body, last_response.body
@@ -143,5 +143,34 @@ class MiddlewareTest < Minitest::Test
   def test_vendor_path_falls_through_without_local_vue
     get '/vue/-/vue.esm-browser.js'
     assert_equal 'fallthrough /vue/-/vue.esm-browser.js', last_response.body
+  end
+
+  def test_live_reload_client_and_stream_when_enabled
+    @config.live_reload = true
+    get '/vue/-/reload.js'
+    assert_equal 200, last_response.status
+    assert_equal 'text/javascript; charset=utf-8', last_response.headers['content-type']
+    assert_includes last_response.body, 'EventSource'
+
+    status, headers, body = app.call(Rack::MockRequest.env_for('/vue/-/events'))
+    assert_equal 200, status
+    assert_equal 'text/event-stream; charset=utf-8', headers['content-type']
+    assert_kind_of VueLive::LiveReload::Frames, body
+  end
+
+  def test_live_reload_endpoints_fall_through_when_disabled
+    @config.live_reload = false
+    get '/vue/-/reload.js'
+    assert_equal 'fallthrough /vue/-/reload.js', last_response.body
+    get '/vue/-/events'
+    assert_equal 'fallthrough /vue/-/events', last_response.body
+  end
+
+  def test_source_map_only_outside_production
+    get '/vue/App.vue'
+    assert_includes last_response.body, '//# sourceMappingURL=data:application/json'
+    @config.env = 'production'
+    get '/vue/App.vue'
+    refute_includes last_response.body, 'sourceMappingURL'
   end
 end

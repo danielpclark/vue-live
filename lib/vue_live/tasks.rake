@@ -28,7 +28,8 @@ namespace :vue_live do
     puts "  prefix:     #{VueLive.config.normalized_prefix}"
     puts "  compiler:   #{VueLive.config.compiler}"
     puts "  vue:        #{VueLive.config.resolved_vue_url}"
-    puts "  node:       #{VueLive::NodeTools.node_version || 'not found'}; @vue/compiler-sfc #{VueLive::NodeTools.compiler_sfc_version || 'not installed'}"
+    puts "  node:       #{VueLive::NodeTools.node_version || 'not found'}"
+    puts "  compiler-sfc: #{VueLive::NodeTools.compiler_sfc_version || 'not installed'}"
     if problems.empty?
       puts 'Everything looks good.'
     else

@@ -23,6 +23,10 @@ module VueLive
         super.html_safe
       end
 
+      def vue_live_reload_tag(nonce: nil)
+        super(nonce: nonce || vue_live_csp_nonce).html_safe
+      end
+
       private
 
       def vue_live_csp_nonce

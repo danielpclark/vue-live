@@ -3,11 +3,13 @@
 require_relative 'vue_live/version'
 require_relative 'vue_live/errors'
 require_relative 'vue_live/configuration'
+require_relative 'vue_live/source_map'
 require_relative 'vue_live/compiler'
 require_relative 'vue_live/emitter'
 require_relative 'vue_live/cache'
 require_relative 'vue_live/resolver'
 require_relative 'vue_live/store'
+require_relative 'vue_live/live_reload'
 require_relative 'vue_live/middleware'
 require_relative 'vue_live/helpers'
 require_relative 'vue_live/precompiler'
@@ -87,6 +89,7 @@ module VueLive
 
     def detect_root
       return ::Rails.root.to_s if rails? && ::Rails.root
+
       ENV['VUE_LIVE_ROOT'] || Dir.pwd
     end
 
@@ -101,4 +104,4 @@ module VueLive
   end
 end
 
-require_relative 'vue_live/railtie' if defined?(::Rails::Railtie)
+require_relative 'vue_live/railtie' if defined?(Rails::Railtie)

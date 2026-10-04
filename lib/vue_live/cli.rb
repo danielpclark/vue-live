@@ -8,7 +8,7 @@ module VueLive
   class CLI
     TEMPLATE_DIR = File.expand_path('templates', __dir__)
 
-    USAGE = <<~TEXT
+    USAGE = <<~TEXT.freeze
       vue-live #{VueLive::VERSION}
 
       Usage: vue-live <command> [options]
@@ -72,7 +72,8 @@ module VueLive
       end
       write('config/vue_live.yml', File.read(File.join(TEMPLATE_DIR, 'vue_live.yml')), force)
       FileUtils.mkdir_p(File.join(root, VueLive.config.source_path))
-      write(File.join(VueLive.config.source_path, 'HelloVueLive.vue'), File.read(File.join(TEMPLATE_DIR, 'HelloVueLive.vue')), force)
+      write(File.join(VueLive.config.source_path, 'HelloVueLive.vue'), File.read(File.join(TEMPLATE_DIR, 'HelloVueLive.vue')),
+            force)
       NodeTools.setup(root) if @args.include?('--node')
       @out.puts ''
       @out.puts 'Done.  Mount the middleware (`use VueLive::Middleware`, or `register VueLive::Sinatra`) and render:'
@@ -98,13 +99,11 @@ module VueLive
       components = VueLive.store.resolver.components
       @out.puts "  components: #{VueLive.config.source_dir} (#{components.size} .vue file(s))"
       components.each do |c|
-        begin
-          compiled = VueLive.store.fetch(c)
-          @out.puts "    ok     #{c} (#{compiled.backend})"
-        rescue VueLive::Error => e
-          problems << e.message
-          @out.puts "    FAIL   #{c}"
-        end
+        compiled = VueLive.store.fetch(c)
+        @out.puts "    ok     #{c} (#{compiled.backend})"
+      rescue VueLive::Error => e
+        problems << e.message
+        @out.puts "    FAIL   #{c}"
       end
       if problems.empty?
         @out.puts 'Everything looks good.'
@@ -154,6 +153,7 @@ module VueLive
     def option_value(flag)
       idx = @args.index(flag)
       return @args[idx + 1] if idx && @args[idx + 1]
+
       @args.find { |a| a.start_with?("#{flag}=") }&.split('=', 2)&.last
     end
   end

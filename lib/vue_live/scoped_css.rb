@@ -90,7 +90,7 @@ module VueLive
         c = css[i]
         if quote
           quote = nil if c == quote && css[i - 1] != '\\'
-        elsif c == '"' || c == "'"
+        elsif ['"', "'"].include?(c)
           quote = c
         elsif c == '('
           depth += 1
@@ -114,7 +114,7 @@ module VueLive
         c = css[i]
         if quote
           quote = nil if c == quote && css[i - 1] != '\\'
-        elsif c == '"' || c == "'"
+        elsif ['"', "'"].include?(c)
           quote = c
         elsif c == '{'
           depth += 1
@@ -144,7 +144,7 @@ module VueLive
         if quote
           quote = nil if c == quote && str[idx - 1] != '\\'
           buf << c
-        elsif c == '"' || c == "'"
+        elsif ['"', "'"].include?(c)
           quote = c
           buf << c
         elsif c == '('
@@ -173,18 +173,21 @@ module VueLive
       end
 
       # :deep(x) / ::v-deep x / >>> x / /deep/ x : scope the part *before*, leave the rest alone.
-      if (m = sel.match(/\A(.*?)(?:\s*::v-deep\((.*?)\)|\s*:deep\((.*?)\)|\s*::v-deep\b|\s*>>>|\s*\/deep\/)(.*)\z/m))
+      if (m = sel.match(%r{\A(.*?)(?:\s*::v-deep\((.*?)\)|\s*:deep\((.*?)\)|\s*::v-deep\b|\s*>>>|\s*/deep/)(.*)\z}m))
         before = m[1].strip
         inner  = (m[2] || m[3]).to_s.strip
         after  = m[4].to_s.strip
         rest   = [inner, after].reject(&:empty?).join(' ')
         return rest if before.empty? # ":deep(.a)" alone scopes nothing
+
         return "#{scope_compound(before)} #{rest}".strip
       end
 
       # :slotted(x) -> x gets the slot scope attribute.
       if (m = sel.match(/\A(.*?):slotted\((.*)\)(.*)\z/m))
-        before, inner, after = m[1].strip, m[2].strip, m[3].strip
+        before = m[1].strip
+        inner = m[2].strip
+        after = m[3].strip
         scoped_inner = scope_compound(inner, attr: @slot_attr)
         return [before, scoped_inner + after].reject(&:empty?).join(' ')
       end
@@ -215,7 +218,7 @@ module VueLive
         if quote
           quote = nil if c == quote && sel[i - 1] != '\\'
           buf << c
-        elsif c == '"' || c == "'"
+        elsif ['"', "'"].include?(c)
           quote = c
           buf << c
         elsif c == '('
@@ -244,8 +247,9 @@ module VueLive
 
     def insert_attr(compound, attr)
       # Split off pseudo-elements (::before, :before, :after, :first-line...) which must come last.
-      if (m = compound.match(/\A(.*?)((?:::[\w-]+(?:\([^)]*\))?|:(?:before|after|first-line|first-letter|selection|placeholder|marker|backdrop)\b)+)\z/m))
-        base, pseudo = m[1], m[2]
+      if (m = compound.match(/\A(.*?)((?:::[\w-]+(?:\([^)]*\))?|:(?:before|after|first-line|first-letter|selection|placeholder|marker|backdrop)\b)+)\z/m)) # rubocop:disable Layout/LineLength
+        base = m[1]
+        pseudo = m[2]
         return "#{base.empty? ? '*' : base}#{attr}#{pseudo}"
       end
       compound.empty? ? "*#{attr}" : "#{compound}#{attr}"

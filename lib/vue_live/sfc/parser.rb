@@ -9,8 +9,8 @@ module VueLive
     # Only the top level is parsed; the contents of <template> are handed to Vue's own compiler
     # untouched, so nested <template v-slot> elements, comments and so on survive as-is.
     class Parser
-      BLOCK_START = /<(template|script|style|[a-zA-Z][\w-]*)(\s[^>]*?)?(\/?)>/m
-      ATTR        = /([^\s=\/"']+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/
+      BLOCK_START = %r{<(template|script|style|[a-zA-Z][\w-]*)(\s[^>]*?)?(/?)>}m
+      ATTR        = %r{([^\s=/"']+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?}
 
       def self.parse(source, filename: 'anonymous.vue')
         new(source, filename).parse
@@ -42,6 +42,7 @@ module VueLive
           else
             close = find_close(tag, start)
             raise CompileError.new("unterminated <#{tag}> block starting on line #{line}", file: @filename) unless close
+
             content = @source[start...close[0]]
             pos = close[1]
           end
@@ -50,13 +51,16 @@ module VueLive
           case tag
           when 'template'
             raise CompileError.new('only one top-level <template> block is allowed', file: @filename) if template
+
             template = block
           when 'script'
             if block.setup?
               raise CompileError.new('only one <script setup> block is allowed', file: @filename) if script_setup
+
               script_setup = block
             else
               raise CompileError.new('only one plain <script> block is allowed', file: @filename) if script
+
               script = block
             end
           when 'style'
@@ -96,6 +100,7 @@ module VueLive
         else
           idx = @source.index(%r{</#{Regexp.escape(tag)}\s*>}i, start)
           return nil unless idx
+
           close_end = @source.index('>', idx) + 1
           [idx, close_end]
         end

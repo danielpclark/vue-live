@@ -14,7 +14,8 @@ module VueLive
   module Compiler
     # What a backend hands back.  +code+ is the module body *without* style injection and
     # before import rewriting; Emitter finishes the job.
-    Result = Struct.new(:code, :css, :scope_id, :backend, :dependencies, keyword_init: true) do
+    # +source_map+ is an optional source map (Hash, v3) whose generated lines refer to +code+.
+    Result = Struct.new(:code, :css, :source_map, :scope_id, :backend, :dependencies, keyword_init: true) do
       def css?
         css && !css.strip.empty?
       end
@@ -73,12 +74,14 @@ module VueLive
       def block_source(block, absolute_path, dependencies)
         return [block&.content, nil] unless block&.src
         raise CompileError.new('src="..." attributes need the component path', file: absolute_path) unless absolute_path
+
         path = File.expand_path(block.src, File.dirname(absolute_path))
         root = File.expand_path(config.source_dir)
         unless path.start_with?(root + File::SEPARATOR)
           raise ForbiddenPath, "#{block.src} resolves outside the component root"
         end
         raise CompileError.new("src file not found: #{block.src}", file: absolute_path) unless File.file?(path)
+
         dependencies << path
         [File.read(path), path]
       end

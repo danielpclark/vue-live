@@ -25,6 +25,7 @@ module VueLive
 
       def setup_node
         return unless options[:node]
+
         require 'vue_live/node_tools'
         VueLive::NodeTools.setup(destination_root)
       end

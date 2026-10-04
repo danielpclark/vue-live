@@ -8,6 +8,7 @@ module VueLive
   #   GET /vue/App.vue            -> compiled ES module (also at /vue/App.vue.js)
   #   GET /vue/components/x.js    -> any other allowed file under the component root, as-is
   #   GET /vue/-/vue.esm-browser.js -> a local copy of Vue when the project has one
+  #   GET /vue/-/reload.js, /vue/-/events -> development live reload (client + SSE stream)
   #
   # Everything else is passed to the next app, so it can sit in front of Sprockets, Propshaft,
   # Webpacker or ActionDispatch::Static without interfering with them.
@@ -40,13 +41,13 @@ module VueLive
     def initialize(app, options = {})
       @app = app
       options = options.dup
-      if (cfg = options.delete(:config))
-        @config = cfg
-      elsif options.empty?
-        @config = VueLive.config
-      else
-        @config = VueLive.config.dup.apply(options)
-      end
+      @config = if (cfg = options.delete(:config))
+                  cfg
+                elsif options.empty?
+                  VueLive.config
+                else
+                  VueLive.config.dup.apply(options)
+                end
       # Share the global store when running on the global config so VueLive.store.clear works.
       @store = @config.equal?(VueLive.config) ? nil : Store.new(@config)
     end
@@ -62,7 +63,7 @@ module VueLive
       return method_not_allowed unless %w[GET HEAD].include?(env['REQUEST_METHOD'])
 
       rest = path[(prefix.length + 1)..]
-      return serve_vendor(env, rest) if rest.start_with?('-/')
+      return serve_internal(env, rest) if rest.start_with?('-/')
 
       target = store.resolver.resolve(rest)
       return @app.call(env) unless target
@@ -75,6 +76,7 @@ module VueLive
     def serve_component(env, target)
       compiled = store.fetch(target.relative_path)
       return not_modified if fresh?(env, compiled.etag)
+
       headers = {
         'content-type' => MIME['.vue'],
         'etag' => compiled.etag,
@@ -94,8 +96,9 @@ module VueLive
 
     def serve_file(env, target)
       stat = File.stat(target.absolute_path)
-      etag = %("#{stat.mtime.to_i.to_s(16)}-#{stat.size.to_s(16)}")
+      etag = %("#{Store.file_etag(stat)}")
       return not_modified if fresh?(env, etag)
+
       ext = File.extname(target.relative_path).downcase
       headers = {
         'content-type' => MIME.fetch(ext, 'application/octet-stream'),
@@ -106,12 +109,28 @@ module VueLive
       respond(env, 200, headers, File.binread(target.absolute_path))
     end
 
+    # Internal endpoints under <prefix>/-/.
+    def serve_internal(env, rest)
+      case rest
+      when '-/vue.esm-browser.js' then serve_vendor(env)
+      when '-/reload.js' then live_reload.enabled? ? live_reload.client_response : @app.call(env)
+      when '-/events' then live_reload.enabled? ? live_reload.stream_response(env) : @app.call(env)
+      else @app.call(env)
+      end
+    end
+
+    def live_reload
+      @live_reload ||= LiveReload.new(config)
+    end
+
     # /vue/-/vue.esm-browser.js : serve the project's own copy of Vue when there is one.
-    def serve_vendor(env, rest)
-      return @app.call(env) unless rest == '-/vue.esm-browser.js' && (file = config.local_vue_file)
+    def serve_vendor(env)
+      return @app.call(env) unless (file = config.local_vue_file)
+
       stat = File.stat(file)
       etag = %("vue-#{stat.size.to_s(16)}-#{stat.mtime.to_i.to_s(16)}")
       return not_modified if fresh?(env, etag)
+
       headers = { 'content-type' => MIME['.js'], 'etag' => etag, 'cache-control' => cache_control(env, etag.delete('"')) }
       respond(env, 200, headers, File.binread(file))
     end

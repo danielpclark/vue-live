@@ -12,14 +12,12 @@ module VueLive
   # The manifest maps "App.vue" => "/vue/App.vue.js?v=<digest>" and is used by vue_live_path when
   # config.use_manifest? is true.
   class Precompiler
-    attr_reader :config, :store
+    attr_reader :config, :store, :errors
 
     def initialize(config = VueLive.config, store: nil)
       @config = config
       @store = store || Store.new(config)
     end
-
-    attr_reader :errors
 
     # Compiles everything it can.  Components that fail are reported (and collected in #errors);
     # pass strict: true to raise on the first failure instead.
@@ -60,6 +58,7 @@ module VueLive
 
       write(File.join(output, 'manifest.json'), JSON.pretty_generate(manifest))
       raise errors.first if strict && errors.any?
+
       manifest
     end
 
@@ -71,6 +70,7 @@ module VueLive
       @manifests ||= {}
       path = config.manifest_path
       return @manifests[path] if @manifests[path] && !config.reload?
+
       @manifests[path] = File.file?(path) ? JSON.parse(File.read(path)) : {}
     end
 

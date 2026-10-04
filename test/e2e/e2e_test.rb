@@ -4,20 +4,25 @@ require_relative '../test_helper'
 require 'open3'
 require 'socket'
 require 'json'
+require 'timeout'
 
-# Opt-in: VUE_LIVE_E2E=1 VUE_LIVE_NODE_ROOT=<dir with vue, @vue/compiler-sfc, sass, playwright-core>
-# Set PLAYWRIGHT_CHROMIUM to a Chromium binary when playwright-core has not downloaded one.
+# Runs whenever `rake test:setup` has installed playwright-core and a Chromium (or
+# PLAYWRIGHT_CHROMIUM names a browser); set VUE_LIVE_E2E=0 to skip it explicitly.
 class E2ETest < Minitest::Test
   def setup
-    skip 'set VUE_LIVE_E2E=1 to run the browser test' unless ENV['VUE_LIVE_E2E']
-    skip 'VUE_LIVE_NODE_ROOT must point at a project with playwright-core' unless NODE_ROOT && File.directory?(File.join(NODE_ROOT, 'node_modules', 'playwright-core'))
+    skip 'VUE_LIVE_E2E=0 disables the browser test' if ENV['VUE_LIVE_E2E'] == '0'
+    skip 'run `rake test:setup` to install @vue/compiler-sfc, sass and playwright-core' unless node_available?
+    @chromium = chromium_path
+    skip 'no Chromium found: run `rake test:setup` or set PLAYWRIGHT_CHROMIUM' unless @chromium
   end
 
   def test_components_render_in_a_real_browser
     port = free_port
     server = Process.spawn(RbConfig.ruby, File.expand_path('server.rb', __dir__), NODE_ROOT, port.to_s, err: File::NULL)
     wait_for_port(port)
-    out, err, status = Open3.capture3('node', File.expand_path('browser.js', __dir__), NODE_ROOT, "http://127.0.0.1:#{port}/")
+    out, err, status = Timeout.timeout(120) do
+      Open3.capture3({ 'PLAYWRIGHT_CHROMIUM' => @chromium }, 'node', File.expand_path('browser.js', __dir__), NODE_ROOT, "http://127.0.0.1:#{port}/")
+    end
     assert status.success?, err
     seen = JSON.parse(out)
 
@@ -30,6 +35,7 @@ class E2ETest < Minitest::Test
     assert seen['many'], 'nested <template v-if>'
     assert_equal '42', seen['setupText'], '<script setup> via the Node backend'
     assert_equal 'rgb(0, 0, 255)', seen['setupColor'], 'scoped scss via the Node backend'
+    assert seen['liveReload'], 'live reload client should be active in development'
     assert_empty seen['errors']
   ensure
     Process.kill('TERM', server) if server

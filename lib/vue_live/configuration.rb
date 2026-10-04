@@ -19,13 +19,13 @@ module VueLive
     DEFAULT_EXTENSIONS = %w[.vue .js .mjs .css .json .svg .png .jpg .jpeg .gif .webp .avif .ico .woff .woff2 .ttf .otf].freeze
 
     # Where the project lives.  Rails.root under Rails, the current directory elsewhere.
-    attr_accessor :root
+    attr_writer :root
     # Directory holding the .vue components, relative to +root+ (or absolute).
     attr_accessor :source_path
     # URL prefix the middleware answers on.
     attr_accessor :prefix
     # Current environment name: development / test / production.
-    attr_accessor :env
+    attr_writer :env
     # :ruby (pure Ruby, zero dependencies), :node (@vue/compiler-sfc through Node.js) or :auto
     # (Ruby, falling back to Node only for components the Ruby backend cannot handle).
     attr_accessor :compiler
@@ -34,12 +34,12 @@ module VueLive
     # :memory keeps compiled modules in the process, :file additionally persists them under
     # +cache_path+ (survives restarts, shared between workers), :none disables caching.
     attr_accessor :cache
-    attr_accessor :cache_path
+    attr_accessor :cache_path, :vue_version
+    attr_writer :logger
     # URL of the Vue ESM build.  nil = auto: a local copy under node_modules or vendor/vue_live when
     # present, otherwise the pinned jsDelivr build.  Must be a *full* build (with the template
     # compiler) when components ship their templates as strings, i.e. with the Ruby backend.
     attr_accessor :vue_url
-    attr_accessor :vue_version
     # Extra entries for the generated import map, e.g. { 'pinia' => 'https://...' }.
     attr_accessor :import_map
     # Node.js executable used by the :node compiler.
@@ -53,13 +53,25 @@ module VueLive
     attr_accessor :use_manifest
     # Mount the middleware automatically (Railtie / Sinatra extension).  Set false to +use+ it yourself.
     attr_accessor :middleware
-    attr_accessor :logger
     # Register a `vue` pin with importmap-rails automatically when that gem is present.
     attr_accessor :importmap_pin
     # Hook `vue_live:precompile` into `assets:precompile` under Rails (off by default: live is the point).
     attr_accessor :hook_assets_precompile
     # Whether to emit `<style>` content into the module (true) or drop styles entirely (false).
     attr_accessor :inject_styles
+    # Append an inline source map to every compiled module.  nil = on outside production.
+    attr_accessor :source_maps
+    # Keep one long-lived `node compile.js --server` process per configuration (true) or spawn a
+    # process per compile (false).
+    attr_accessor :node_worker
+    # Development live reload: SSE stream at <prefix>/-/events + client at <prefix>/-/reload.js.
+    # nil = on whenever +reload+ is on.
+    attr_accessor :live_reload
+    # Seconds between directory scans for live reload.
+    attr_accessor :live_reload_interval
+    # Add `?v=<digest>` to the relative imports inside compiled modules so every file a page loads
+    # can be cached immutably.
+    attr_accessor :digest_imports
 
     def initialize
       @root         = nil
@@ -82,6 +94,11 @@ module VueLive
       @importmap_pin = true
       @hook_assets_precompile = false
       @inject_styles = true
+      @source_maps  = nil
+      @node_worker  = true
+      @live_reload  = nil
+      @live_reload_interval = 0.5
+      @digest_imports = true
     end
 
     def root
@@ -98,6 +115,14 @@ module VueLive
 
     def reload?
       @reload.nil? ? !production? : !!@reload
+    end
+
+    def source_maps?
+      @source_maps.nil? ? !production? : !!@source_maps
+    end
+
+    def live_reload?
+      @live_reload.nil? ? reload? : !!@live_reload
     end
 
     def logger
@@ -122,6 +147,7 @@ module VueLive
 
     def use_manifest?
       return !!@use_manifest unless @use_manifest.nil?
+
       production? && File.exist?(manifest_path)
     end
 
@@ -135,6 +161,7 @@ module VueLive
     def resolved_vue_url
       return vue_url if vue_url && !vue_url.empty?
       return "#{normalized_prefix}/-/vue.esm-browser.js" if local_vue_file
+
       format(CDN_TEMPLATE, version: vue_version, file: production? ? 'vue.esm-browser.prod.js' : 'vue.esm-browser.js')
     end
 
@@ -152,7 +179,8 @@ module VueLive
     # Merge a config/vue_live.yml (``default`` + env sections) into this object.
     def load_yaml(file = File.join(root, 'config', 'vue_live.yml'))
       return self unless File.file?(file)
-      data = YAML.safe_load(File.read(file), aliases: true, symbolize_names: false) || {}
+
+      data = YAML.safe_load_file(file, aliases: true, symbolize_names: false) || {}
       merged = (data['default'] || {}).merge(data[env.to_s] || {})
       apply(merged)
     end
@@ -162,6 +190,7 @@ module VueLive
       hash.each do |key, value|
         setter = "#{key}="
         next unless respond_to?(setter)
+
         value = value.to_sym if %w[compiler cache].include?(key.to_s) && value.is_a?(String)
         public_send(setter, value)
       end
@@ -172,6 +201,7 @@ module VueLive
       instance_variables.each_with_object({}) do |ivar, h|
         name = ivar.to_s.delete('@')
         next if name == 'logger'
+
         h[name] = instance_variable_get(ivar)
       end
     end

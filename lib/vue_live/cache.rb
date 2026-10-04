@@ -72,8 +72,10 @@ module VueLive
       def read(key)
         hit = @inner.read(key)
         return hit if hit
+
         file = path_for(key)
         return nil unless File.file?(file)
+
         compiled = Compiled.from_h(JSON.parse(File.read(file)))
         @inner.write(key, compiled)
       rescue JSON::ParserError, Errno::ENOENT

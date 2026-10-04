@@ -20,8 +20,11 @@ without tying itself to Rails or to any asset pipeline:
   `<script setup>`, TypeScript, Pug, Sass/Less/Stylus and CSS modules work too.  The `auto`
   strategy only uses Node for components that need it.
 * **Production ready.**  Compiled once per process (or persisted to disk), served with ETags,
-  digested URLs with far-future caching, and CSP-friendly style injection.  Optionally precompile
-  everything to static files for a CDN.
+  digested URLs with far-future caching for the whole import graph, and CSP-friendly style
+  injection.  Optionally precompile everything to static files for a CDN.
+* **Pleasant in development.**  Changed components recompile on the next request, the page
+  reloads itself, compile errors show up in the page, and inline source maps point browser
+  errors at the right line of the `.vue` file.
 
 ## Installation
 
@@ -46,7 +49,8 @@ Then in any view:
 ```
 
 That is the whole setup.  `app/vue/HelloVueLive.vue` is compiled on first request and served at
-`/vue/HelloVueLive.vue.js`; in development it recompiles whenever the file changes.
+`/vue/HelloVueLive.vue.js`; in development it recompiles whenever the file changes and the page
+reloads itself.
 
 Settings can live in `config/vue_live.yml` (written by the generator) or in Ruby:
 
@@ -173,10 +177,16 @@ Under Rails the helpers are `html_safe` and pick up the CSP nonce automatically.
 | `<style>`, `<style scoped>` | yes (`:deep`, `:slotted`, `:global`) | yes |
 | `<style lang="scss">`, `<style module>`, `<template lang="pug">` | no | yes, with the npm packages installed |
 | `src="..."` on blocks | yes | yes |
-| Speed | ~1 ms per component | one `node` process per compile (~300 ms), cached |
+| Speed | ~1 ms per component | ~400 ms once to start the worker, then a few ms per component |
+| Source maps | script block, line for line | script and template, merged |
 
 `compiler: auto` (the default) uses Ruby and falls back to Node only for components that need it,
 with a clear error naming the feature when Node is unavailable.
+
+The Node backend keeps one `node compile.js --server` worker per configuration, so after the
+first compile (which includes Node's start-up, roughly 400 ms) each component takes a few
+milliseconds.  The worker is restarted automatically if it dies; set `node_worker: false` to spawn
+a process per compile instead.
 
 Enable the Node backend with:
 
@@ -190,10 +200,29 @@ If the [webpacker_cli](https://github.com/danielpclark/webpacker-cli) gem is ins
 manager detection is reused, so projects already built with it need nothing extra.  Installing
 `vue` locally also makes `vue_live` serve it from `/vue/-/vue.esm-browser.js` instead of the CDN.
 
+## Development: live reload, errors, source maps
+
+* **Live reload.**  With `live_reload` on (the default whenever `reload` is on) `vue_live_mount_tag`
+  adds a small client that listens to a Server-Sent Events stream at `/vue/-/events` and reloads
+  the page when any file under the component root changes.  The stream is served by the
+  middleware from the request's own thread, so it works with Puma, Falcon, WEBrick or anything
+  else threaded, with no extra process.  `vue_live_reload_tag` renders the client on its own.
+* **Errors in the page.**  A component that fails to compile is served as a module that logs the
+  error, shows it in an overlay, and throws, so the failure is visible without opening the log.
+* **Source maps.**  With `source_maps` on (the default outside production) every module ends with
+  an inline source map.  The Ruby backend maps the `<script>` block line for line; the Node
+  backend merges `@vue/compiler-sfc`'s script and template maps, so stack traces and breakpoints
+  land in the `.vue` file.
+
 ## Caching and production
 
 * `reload` (default: on outside production) compares mtimes on every request and recompiles
-  changed files, including `src="..."` dependencies.
+  changed files, including `src="..."` dependencies and imported siblings.
+* `digest_imports` (default: on) rewrites the relative imports inside a module to
+  `./Child.vue.js?v=<digest>` and `./util.js?v=<mtime-size>`, so a page's whole module graph can
+  be served with `Cache-Control: immutable`.  A child's digest is part of its parent's code, so a
+  change anywhere propagates up to the URL the page requests.  Import cycles are handled (the
+  back edge stays undigested and revalidates by ETag).
 * `cache: :memory` keeps compiled modules per process; `cache: :file` also writes them to
   `tmp/cache/vue_live` so Puma workers and restarts share the work.
 * Responses carry an `ETag`; URLs from `vue_live_path` include `?v=<digest>` and are served with
@@ -232,6 +261,10 @@ so Vue 3 is the default and the only version the Node backend supports.
 | `importmap_pin` | `true` | pin `vue` into importmap-rails |
 | `hook_assets_precompile` | `false` | run `vue_live:precompile` with `assets:precompile` |
 | `inject_styles` | `true` | emit `<style>` blocks into the module |
+| `source_maps` | not production | append an inline source map to each module |
+| `node_worker` | `true` | keep one long-lived Node worker instead of a process per compile |
+| `live_reload` / `live_reload_interval` | follows `reload` / `0.5` | SSE live reload and its scan interval |
+| `digest_imports` | `true` | add `?v=<digest>` to relative imports inside modules |
 
 Environment: `VUE_LIVE_ENV`, `RAILS_ENV`, `RACK_ENV`, `APP_ENV` (default `development`).
 
@@ -244,10 +277,13 @@ Paths are normalised and confined to that directory; dot-files and unknown exten
 
 ```sh
 bundle install
-bundle exec rake test                                   # unit + Rack + Sinatra + Rails tests
-VUE_LIVE_NODE_ROOT=/path/with/node_modules rake test    # also run the Node backend tests
-VUE_LIVE_E2E=1 rake test                                # headless Chromium end-to-end (see test/e2e)
+bundle exec rake test:setup   # npm install in test/ (+ a Chromium) for the Node-backend and browser tests
+bundle exec rake test         # everything; without test:setup the Node and browser tests skip with a message
+bundle exec rubocop
 ```
+
+`VUE_LIVE_NODE_ROOT` points the Node tests at a different `node_modules`; `PLAYWRIGHT_CHROMIUM`
+names a browser when Playwright could not download one; `VUE_LIVE_E2E=0` skips the browser test.
 
 ## License
 
