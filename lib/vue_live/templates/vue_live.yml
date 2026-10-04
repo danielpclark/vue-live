@@ -1,0 +1,32 @@
+# vue_live configuration.  Keys mirror VueLive::Configuration; the `default` section is merged
+# with the section for the current environment (RAILS_ENV / RACK_ENV / APP_ENV).
+default: &default
+  # Directory holding your .vue components (relative to the project root).
+  source_path: app/vue
+  # URL prefix the components are served under.
+  prefix: /vue
+  # ruby  - pure Ruby, zero dependencies: <template>, <script>, <style [scoped]>
+  # node  - @vue/compiler-sfc through Node.js: adds <script setup>, TypeScript, Sass, CSS modules
+  # auto  - Ruby, falling back to Node only for components that need it
+  compiler: auto
+  # memory | file | none
+  cache: memory
+  cache_path: tmp/cache/vue_live
+  # URL of Vue's ESM browser build.  Leave unset to use a local copy (node_modules or
+  # vendor/vue_live) when one exists, otherwise the pinned jsDelivr build.
+  # vue_url: https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.prod.js
+  # Extra import-map entries available to your components:
+  # import_map:
+  #   pinia: https://cdn.jsdelivr.net/npm/pinia@3/dist/pinia.esm-browser.js
+
+development:
+  <<: *default
+  reload: true
+
+test:
+  <<: *default
+
+production:
+  <<: *default
+  reload: false
+  # cache: file

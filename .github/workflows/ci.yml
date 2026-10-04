@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ['3.0', '3.2', '3.3', '3.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install @vue/compiler-sfc for the Node backend tests
+        run: |
+          mkdir -p /tmp/nodeproj && cd /tmp/nodeproj
+          npm init -y >/dev/null
+          npm install vue@3 @vue/compiler-sfc@3 sass
+      - run: bundle exec rake test
+        env:
+          VUE_LIVE_NODE_ROOT: /tmp/nodeproj
