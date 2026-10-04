@@ -23,3 +23,6 @@
 * `rake test:setup` installs the Node packages and Chromium the optional tests need; those tests
   auto-detect them instead of requiring environment variables.
 * RuboCop configuration and CI job.
+* TypeScript on Node.js < 22.13: `rake test:setup` and `vue-live node-setup` install sucrase when
+  Node cannot strip types itself, `VUE_LIVE_TS_TRANSPILER` pins a transpiler, `vue-live check`
+  warns about the gap, and CI covers Node 20 (#3).

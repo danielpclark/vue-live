@@ -91,6 +91,33 @@ class NodeCompilerTest < Minitest::Test
     assert_nil VueLive::Compiler.compile(src, relative_path: 'Unmapped.vue', config: @config).source_map
   end
 
+  def test_typescript_with_each_available_transpiler
+    # Node >= 22.13 strips on its own; older Node needs one of the packages rake test:setup installs.
+    available = []
+    available << 'node' if VueLive::NodeTools.node_strips_types?(@config)
+    available += VueLive::NodeTools.installed_ts_transpilers(NODE_ROOT).map { |pkg| pkg == '@babel/core' ? 'babel' : pkg }
+    refute_empty available, 'rake test:setup must leave at least one TypeScript transpiler available'
+    @config.node_worker = false # one-shot processes pick up the environment variable per compile
+    src = "<template><b>{{ n }}</b></template><script setup lang=\"ts\">import { ref } from 'vue'\nconst n = ref<number>(1)\ndefineProps<{ a: string }>()</script>"
+    available.each do |name|
+      with_env('VUE_LIVE_TS_TRANSPILER' => name) do
+        r = VueLive::Compiler.compile(src, relative_path: "TS-#{name}.vue", config: @config)
+        refute_includes r.code, 'ref<number>', "#{name} left types behind"
+        assert_includes r.code, 'type: String', "#{name} broke defineProps"
+      end
+    end
+  end
+
+  def test_missing_transpiler_error_names_the_fix
+    @config.node_worker = false
+    with_env('VUE_LIVE_TS_TRANSPILER' => 'bogus') do
+      e = assert_raises(VueLive::CompileError) do
+        VueLive::Compiler.compile('<template><b/></template><script lang="ts">export default {}</script>', relative_path: 'Bogus.vue', config: @config)
+      end
+      assert_match(/unknown VUE_LIVE_TS_TRANSPILER/, e.message)
+    end
+  end
+
   def test_css_modules
     r = VueLive::Compiler.compile('<template><p :class="$style.red">x</p></template><style module>.red{color:red}</style>',
                                   relative_path: 'M.vue', config: @config)
