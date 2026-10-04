@@ -11,11 +11,11 @@ rescue LoadError
   warn 'railties/actionpack not installed; skipping Railtie tests'
 end
 
-if defined?(::Rails::Railtie)
+if defined?(Rails::Railtie)
   ENV['RAILS_ENV'] = 'test'
   require 'vue_live/railtie'
 
-  class VueLiveTestApp < ::Rails::Application
+  class VueLiveTestApp < Rails::Application
     config.root = FIXTURES
     config.eager_load = false
     config.logger = Logger.new(File::NULL)
@@ -26,7 +26,7 @@ if defined?(::Rails::Railtie)
     config.vue_live.import_map = { 'pinia' => '/pinia.js' }
 
     routes.append do
-      get '/page', to: proc { |env|
+      get '/page', to: proc { |_env|
         view = ActionView::Base.with_empty_template_cache.with_view_paths([], {}, nil)
         html = view.render(inline: <<~ERB)
           <%= vue_live_import_map_tag %>
@@ -96,7 +96,7 @@ if defined?(::Rails::Railtie)
   end
 end
 
-if defined?(::Rails::Railtie)
+if defined?(Rails::Railtie)
   class InstallGeneratorTest < Minitest::Test
     def test_generator_creates_files
       require 'generators/vue_live/install/install_generator'
@@ -104,7 +104,7 @@ if defined?(::Rails::Railtie)
         VueLive::Generators::InstallGenerator.start(['--quiet'], destination_root: dir)
         assert File.file?(File.join(dir, 'config/vue_live.yml'))
         assert File.file?(File.join(dir, 'app/vue/HelloVueLive.vue'))
-        yaml = YAML.safe_load(File.read(File.join(dir, 'config/vue_live.yml')), aliases: true)
+        yaml = YAML.safe_load_file(File.join(dir, 'config/vue_live.yml'), aliases: true)
         assert_equal 'app/vue', yaml['default']['source_path']
         assert_equal 'auto', yaml['default']['compiler']
       end

@@ -31,6 +31,7 @@ module VueLive
     # string when importmap-rails is managing the page's import map (the Railtie pins `vue` there).
     def vue_live_import_map_tag(imports: {}, nonce: nil)
       return '' if vue_live_external_importmap?
+
       map = { 'imports' => vue_live_import_map(imports) }
       %(<script type="importmap"#{vue_live_nonce_attr(nonce)}>#{JSON.generate(map).gsub('</', '<\/')}</script>)
     end
@@ -60,7 +61,18 @@ module VueLive
         js << "app.mount(#{js_str(selector)})\n"
       end
       tag = vue_live_module_tag(js, nonce: nonce)
+      tag = "#{tag}\n#{vue_live_reload_tag(nonce: nonce)}" if config.live_reload?
       element ? "#{vue_live_mount_element(selector)}\n#{tag}" : tag
+    end
+
+    # Development live reload client (reloads the page when a component changes).  Included by
+    # vue_live_mount_tag whenever config.live_reload? is on; renders nothing otherwise.
+    def vue_live_reload_tag(nonce: nil)
+      config = vue_live_config
+      return '' unless config.live_reload?
+
+      prefix = config.normalized_prefix
+      %(<script src="#{prefix}/-/reload.js" data-events="#{prefix}/-/events" defer#{vue_live_nonce_attr(nonce)}></script>)
     end
 
     def vue_live_module_tag(javascript, nonce: nil)

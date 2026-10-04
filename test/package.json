@@ -1,0 +1,11 @@
+{
+  "name": "vue_live-test-support",
+  "private": true,
+  "description": "Node packages used by the optional Node-backend and browser tests. Install with `rake test:setup`.",
+  "devDependencies": {
+    "@vue/compiler-sfc": "^3.5.0",
+    "playwright-core": "^1.50.0",
+    "sass": "^1.80.0",
+    "vue": "^3.5.0"
+  }
+}

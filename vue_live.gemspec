@@ -33,15 +33,16 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   # No runtime dependencies on purpose: the gem must drop into any Ruby project.
+  spec.add_development_dependency 'actionview', '>= 6.1', '< 9'
+  spec.add_development_dependency 'importmap-rails', '>= 1.0', '< 3'
   spec.add_development_dependency 'minitest', '~> 5.11'
-  spec.add_development_dependency 'rake', '~> 13.0'
   spec.add_development_dependency 'rack', '>= 2.2', '< 4'
   spec.add_development_dependency 'rack-test', '~> 2.0'
   spec.add_development_dependency 'rackup', '>= 1.0', '< 3'
-  spec.add_development_dependency 'webrick', '~> 1.8'
-  spec.add_development_dependency 'sinatra', '>= 3.0', '< 5'
   spec.add_development_dependency 'railties', '>= 6.1', '< 9'
-  spec.add_development_dependency 'actionview', '>= 6.1', '< 9'
-  spec.add_development_dependency 'importmap-rails', '>= 1.0', '< 3'
+  spec.add_development_dependency 'rake', '~> 13.0'
+  spec.add_development_dependency 'rubocop', '~> 1.60'
+  spec.add_development_dependency 'sinatra', '>= 3.0', '< 5'
   spec.add_development_dependency 'webpacker_cli', '~> 1.0'
+  spec.add_development_dependency 'webrick', '~> 1.8'
 end

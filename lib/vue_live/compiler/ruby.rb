@@ -36,8 +36,9 @@ module VueLive
         scope_id = Compiler.scope_id(relative_path)
         scoped = descriptor.scoped_styles?
 
-        script, = block_source(descriptor.script, absolute_path, dependencies)
+        script, script_file = block_source(descriptor.script, absolute_path, dependencies)
         code = rewrite_script(script.to_s, relative_path)
+        map = build_map(descriptor, script.to_s, code, script_file.nil?) if config.source_maps?
 
         if descriptor.template
           template, = block_source(descriptor.template, absolute_path, dependencies)
@@ -56,7 +57,7 @@ module VueLive
           style.scoped? ? ScopedCSS.rewrite(content, scope_id) : content
         end.join("\n")
 
-        Result.new(code: code, css: css, scope_id: scoped ? scope_id : nil, backend: :ruby,
+        Result.new(code: code, css: css, source_map: map&.to_h, scope_id: scoped ? scope_id : nil, backend: :ruby,
                    dependencies: dependencies)
       end
 
@@ -76,13 +77,27 @@ module VueLive
         if body.match?(EXPORT_DEFAULT)
           raise CompileError.new('only one `export default` is allowed in <script>', file: relative_path)
         end
-        body.rstrip + "\n"
+
+        "#{body.rstrip}\n"
+      end
+
+      # The script block is copied line for line (only `export default` is rewritten in place), so
+      # each generated line of it maps straight to its line in the .vue file.
+      def build_map(descriptor, script, code, inline_script)
+        map = SourceMap.new(descriptor.filename, descriptor.source)
+        return map unless descriptor.script && inline_script && !script.empty?
+
+        # Block content starts right after the opening tag, so its first line is the tag's line.
+        script_lines = script.rstrip.split("\n", -1).length # the trailing newline is not a line
+        generated_lines = code.split("\n", -1).length
+        map.add_block(generated_line: 1, original_line: descriptor.script.line, count: [script_lines, generated_lines].min)
+        map
       end
 
       def js_string(str)
         # JSON is a subset of JS string literal syntax; escape the two JS-only line terminators and
         # "</script>" so the output is safe even when inlined into HTML.
-        JSON.generate(str).gsub(" ", ' ').gsub(" ", ' ').gsub('</', '<\/')
+        JSON.generate(str).gsub(' ', ' ').gsub(' ', ' ').gsub('</', '<\/')
       end
     end
   end

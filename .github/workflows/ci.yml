@@ -21,11 +21,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install @vue/compiler-sfc for the Node backend tests
+      - name: Install Node packages and Chromium for the Node-backend and browser tests
         run: |
-          mkdir -p /tmp/nodeproj && cd /tmp/nodeproj
-          npm init -y >/dev/null
-          npm install vue@3 @vue/compiler-sfc@3 sass
+          bundle exec rake test:setup
+          test/node_modules/.bin/playwright-core install-deps chromium || true
       - run: bundle exec rake test
-        env:
-          VUE_LIVE_NODE_ROOT: /tmp/nodeproj
+
+  rubocop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - run: bundle exec rubocop

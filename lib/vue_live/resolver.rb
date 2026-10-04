@@ -35,6 +35,7 @@ module VueLive
     def components
       root = File.expand_path(source_dir)
       return [] unless File.directory?(root)
+
       Dir.glob('**/*.vue', base: root).sort
     end
 
@@ -42,6 +43,7 @@ module VueLive
     def files
       root = File.expand_path(source_dir)
       return [] unless File.directory?(root)
+
       Dir.glob('**/*', base: root).select do |rel|
         File.file?(File.join(root, rel)) && @config.extensions.include?(File.extname(rel).downcase)
       end.sort
@@ -51,10 +53,13 @@ module VueLive
 
     def clean(path)
       return nil if path.nil?
+
       decoded = path.to_s.gsub(/%([0-9a-fA-F]{2})/) { Regexp.last_match(1).hex.chr }
       return nil if decoded.include?("\0") || decoded.include?('\\')
+
       parts = decoded.split('/').reject { |p| p.empty? || p == '.' }
       return nil if parts.any? { |p| p == '..' || p.start_with?('.') }
+
       parts.join('/')
     end
   end

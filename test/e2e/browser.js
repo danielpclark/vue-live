@@ -13,8 +13,10 @@ const { chromium } = require(require.resolve('playwright-core', { paths: [nodeRo
   // "Failed to load resource" console lines carry no URL, so track HTTP errors from responses instead.
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text()) })
   page.on('response', r => { if (r.status() >= 400 && !/favicon\.ico$/.test(r.url())) errors.push(r.status() + ' ' + r.url()) })
-  await page.goto(url, { waitUntil: 'networkidle' })
+  // 'load', not 'networkidle': the live-reload EventSource keeps one connection open forever.
+  await page.goto(url, { waitUntil: 'load' })
   await page.waitForSelector('#root h1')
+  await page.waitForSelector('#setup .setup')
   const out = {}
   out.h1 = await page.textContent('#root h1')
   out.h1Color = await page.$eval('#root h1', e => getComputedStyle(e).color)
@@ -26,6 +28,7 @@ const { chromium } = require(require.resolve('playwright-core', { paths: [nodeRo
   out.many = await page.$eval('#root', e => !!e.querySelector('.many'))
   out.setupText = await page.textContent('#setup .setup')
   out.setupColor = await page.$eval('#setup .setup', e => getComputedStyle(e).color)
+  out.liveReload = await page.evaluate(() => !!window.__vueLiveReload)
   out.errors = errors
   console.log(JSON.stringify(out))
   await browser.close()

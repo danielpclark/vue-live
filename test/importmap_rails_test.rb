@@ -6,7 +6,7 @@ require 'open3'
 # importmap-rails and a second Rails application cannot share a process with railtie_test.rb, so
 # this scenario boots in a child Ruby process.
 class ImportmapRailsTest < Minitest::Test
-  SCRIPT = <<~RUBY
+  SCRIPT = <<~RUBY.freeze
     ENV['RAILS_ENV'] = 'test'
     $LOAD_PATH.unshift '#{File.expand_path('../lib', __dir__)}'
     require 'rails'
@@ -38,6 +38,6 @@ class ImportmapRailsTest < Minitest::Test
     assert_includes out, 'pinned: true'
     assert_includes out, 'pin to: https://cdn.jsdelivr.net/npm/vue@'
     assert_includes out, 'tag: []'
-    assert_match(/"vue": "https:\/\/cdn\.jsdelivr\.net\/npm\/vue@[\d.]+\/dist\/vue\.esm-browser\.js"/, out)
+    assert_match(%r{"vue": "https://cdn\.jsdelivr\.net/npm/vue@[\d.]+/dist/vue\.esm-browser\.js"}, out)
   end
 end

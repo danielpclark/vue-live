@@ -1,0 +1,79 @@
+# Style baseline for vue_live.  Pragmatic: catches real mistakes and keeps the code uniform
+# without fighting the compiler-style code (long methods and case statements are expected here).
+AllCops:
+  TargetRubyVersion: 3.0
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - 'vendor/**/*'
+    - 'tmp/**/*'
+    - 'pkg/**/*'
+    - 'test/node_modules/**/*'
+    - 'test/fixtures/**/*'
+
+Layout/LineLength:
+  Max: 130
+  AllowedPatterns: ['^\s*#', '^\s*(assert|refute)', 'raise ']
+  Exclude:
+    - 'test/**/*'
+
+Metrics/AbcSize:
+  Enabled: false
+Metrics/BlockLength:
+  Enabled: false
+Metrics/ClassLength:
+  Enabled: false
+Metrics/CyclomaticComplexity:
+  Enabled: false
+Metrics/MethodLength:
+  Enabled: false
+Metrics/ModuleLength:
+  Enabled: false
+Metrics/PerceivedComplexity:
+  Enabled: false
+Metrics/ParameterLists:
+  Max: 7
+
+Style/Documentation:
+  Enabled: false
+Style/StringLiterals:
+  EnforcedStyle: single_quotes
+Style/FrozenStringLiteralComment:
+  Exclude:
+    - 'Rakefile'
+    - 'Gemfile'
+    - '*.gemspec'
+    - 'exe/*'
+Style/GuardClause:
+  Enabled: false
+Style/IfUnlessModifier:
+  Enabled: false
+Style/MultilineBlockChain:
+  Enabled: false
+Style/RescueModifier:
+  Enabled: false
+Style/OptionalBooleanParameter:
+  Enabled: false
+Style/ClassVars:
+  Enabled: false
+Style/EndlessMethod:
+  EnforcedStyle: allow_always
+
+Naming/MethodParameterName:
+  MinNameLength: 1
+Naming/PredicatePrefix:
+  Enabled: false
+Naming/VariableNumber:
+  Enabled: false
+Naming/PredicateMethod:
+  Enabled: false
+
+Lint/MissingSuper:
+  Enabled: false
+Lint/UnusedMethodArgument:
+  AllowUnusedKeywordArguments: true
+
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+Gemspec/RequireMFA:
+  Enabled: false

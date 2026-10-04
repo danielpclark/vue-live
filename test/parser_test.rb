@@ -31,19 +31,19 @@ class ParserTest < Minitest::Test
   end
 
   def test_plain_component_has_no_advanced_features
-    d = parse("<template><p/></template><script>export default {}</script><style scoped>p{}</style>")
+    d = parse('<template><p/></template><script>export default {}</script><style scoped>p{}</style>')
     assert_empty d.advanced_features
     assert d.scoped_styles?
   end
 
   def test_both_script_kinds
-    d = parse("<script>export default {}</script><script setup>const x = 1</script>")
+    d = parse('<script>export default {}</script><script setup>const x = 1</script>')
     refute_nil d.script
     refute_nil d.script_setup
   end
 
   def test_nested_templates_are_balanced
-    d = parse("<template><template v-for=\"i in 3\"><template v-if=\"i\">x</template></template></template>")
+    d = parse('<template><template v-for="i in 3"><template v-if="i">x</template></template></template>')
     assert_equal '<template v-for="i in 3"><template v-if="i">x</template></template>', d.template.content
   end
 
@@ -54,21 +54,21 @@ class ParserTest < Minitest::Test
   end
 
   def test_script_content_with_angle_brackets
-    d = parse("<template><p/></template><script>const f = (a, b) => a < b && b > a; export default { f }</script>")
+    d = parse('<template><p/></template><script>const f = (a, b) => a < b && b > a; export default { f }</script>')
     assert_includes d.script.content, 'a < b && b > a'
   end
 
   def test_unterminated_block
-    e = assert_raises(VueLive::CompileError) { parse("<template><p>oops") }
+    e = assert_raises(VueLive::CompileError) { parse('<template><p>oops') }
     assert_match(/unterminated <template>/, e.message)
     assert_match(/T\.vue/, e.message)
   end
 
   def test_requires_template_or_script
-    assert_raises(VueLive::CompileError) { parse("<style>.a{}</style>") }
+    assert_raises(VueLive::CompileError) { parse('<style>.a{}</style>') }
   end
 
   def test_duplicate_template
-    assert_raises(VueLive::CompileError) { parse("<template><a/></template><template><b/></template>") }
+    assert_raises(VueLive::CompileError) { parse('<template><a/></template><template><b/></template>') }
   end
 end

@@ -16,7 +16,7 @@ class PrecompilerTest < Minitest::Test
       assert File.file?(File.join(out, 'shared/util.js'))
       assert File.file?(File.join(out, '-/vue.esm-browser.js'))
       refute File.exist?(File.join(out, 'secret.txt'))
-      assert_includes File.read(File.join(out, 'App.vue.js')), "from './nested/Child.vue.js'"
+      assert_match(%r{from './nested/Child\.vue\.js\?v=[0-9a-f]{16}'}, File.read(File.join(out, 'App.vue.js')))
 
       json = JSON.parse(File.read(File.join(out, 'manifest.json')))
       assert_equal manifest, json

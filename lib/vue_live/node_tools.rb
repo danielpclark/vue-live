@@ -15,6 +15,7 @@ module VueLive
 
     def webpacker_cli?
       return true if defined?(::WebpackerCli)
+
       require 'webpacker_cli'
       true
     rescue LoadError
@@ -32,6 +33,7 @@ module VueLive
       return ::WebpackerCli.package_manager(root) if webpacker_cli?
       return 'npm' if File.exist?(File.join(root, 'package-lock.json')) && !File.exist?(File.join(root, 'yarn.lock'))
       return 'yarn' if File.exist?(File.join(root, 'yarn.lock')) || which('yarn')
+
       'npm'
     end
 
@@ -50,6 +52,7 @@ module VueLive
     # Install @vue/compiler-sfc (and vue, for a local copy of the browser build) into the project.
     def setup(root = VueLive.config.root, packages: PACKAGES, dev: true)
       raise Error, 'Node.js was not found in PATH; install it to use the :node compiler' unless node_version
+
       pkg_json = File.join(root, 'package.json')
       File.write(pkg_json, JSON.pretty_generate('name' => File.basename(root), 'private' => true)) unless File.exist?(pkg_json)
       manager = package_manager(root)
@@ -61,6 +64,7 @@ module VueLive
       puts "  run    #{cmd.join(' ')}"
       success = system(*cmd, chdir: root)
       raise Error, "#{manager} failed to install #{packages.join(', ')}" unless success
+
       Compiler::Node.reset!
       true
     end

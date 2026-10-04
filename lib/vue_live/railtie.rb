@@ -55,10 +55,13 @@ module VueLive
 
     initializer 'vue_live.importmap', after: 'importmap' do |app|
       next unless defined?(::Importmap) && app.respond_to?(:importmap)
+
       app.config.after_initialize do
         next unless VueLive.config.importmap_pin
+
         map = app.importmap
         next if map.packages.key?('vue')
+
         map.draw { pin 'vue', to: VueLive.config.resolved_vue_url, preload: true }
       end
     end

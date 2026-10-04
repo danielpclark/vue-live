@@ -51,6 +51,22 @@ class HelpersTest < Minitest::Test
     end
   end
 
+  def test_reload_tag_follows_live_reload_setting
+    with_global_config(compiler: :ruby, live_reload: true) do
+      tag = @view.vue_live_reload_tag(nonce: 'n')
+      assert_equal '<script src="/vue/-/reload.js" data-events="/vue/-/events" defer nonce="n"></script>', tag
+      assert_includes @view.vue_live_mount_tag('App.vue'), '/vue/-/reload.js'
+    end
+    with_global_config(compiler: :ruby, live_reload: false) do
+      assert_equal '', @view.vue_live_reload_tag
+      refute_includes @view.vue_live_mount_tag('App.vue'), 'reload.js'
+    end
+    with_global_config(compiler: :ruby, env: 'production') do |cfg|
+      refute cfg.live_reload?
+      refute cfg.source_maps?
+    end
+  end
+
   def test_vue2_mount_tag
     with_global_config(vue_version: '2.7.16', compiler: :ruby) do
       tag = @view.vue_live_mount_tag('App.vue')
