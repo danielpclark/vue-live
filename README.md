@@ -1,15 +1,51 @@
 # vue_live
 
+[![CI](https://github.com/danielpclark/vue-live/actions/workflows/ci.yml/badge.svg)](https://github.com/danielpclark/vue-live/actions/workflows/ci.yml)
+
 **Serve Vue single-file components straight from Ruby, in production, with no build step.**
+
+Drop a `.vue` file into `app/vue/`, render one helper in a view, and the browser gets a native ES
+module.  No bundler, no watcher, no Node.js unless you want it.
+
+```erb
+<%# app/views/layouts/application.html.erb, once, in <head> %>
+<%= vue_live_import_map_tag %>
+
+<%# any view %>
+<%= vue_live_mount_tag 'HelloVueLive.vue', '#app', props: { name: current_user.name }, element: true %>
+```
+
+## Contents
+
+* [Why vue_live](#why-vue_live)
+* [Installation](#installation)
+* [Quick start: Rails](#quick-start-rails)
+* [Quick start: Sinatra](#quick-start-sinatra)
+* [Quick start: plain Rack](#quick-start-plain-rack)
+* [Writing components](#writing-components)
+* [Pinia, Vue Router and other packages](#pinia-vue-router-and-other-packages)
+* [Helpers](#helpers)
+* [Compiler backends](#compiler-backends)
+* [Development: live reload, errors, source maps](#development-live-reload-errors-source-maps)
+* [Caching, production and deployment](#caching-production-and-deployment)
+* [Browser support and trade-offs](#browser-support-and-trade-offs)
+* [Vue 2](#vue-2)
+* [Configuration reference](#configuration-reference)
+* [Command line and rake tasks](#command-line-and-rake-tasks)
+* [Security notes](#security-notes)
+* [Contributing](#contributing)
+* [License](#license)
+
+## Why vue_live
 
 Back when Rails shipped Sprockets and Webpacker, a `.vue` file could be translated on the fly and
 served to a running site.  `vue_live` brings that back for modern Vue (3.x) and modern browsers,
-without tying itself to Rails or to any asset pipeline:
+without tying itself to Rails or to any asset pipeline.
 
 * **Pure Ruby compiler, zero runtime dependencies.**  A `.vue` file is parsed in Ruby, its
   `<template>` is handed to Vue's own in-browser compiler, `<style scoped>` selectors are rewritten
   the way `@vue/compiler-sfc` does, and the result is served as a native ES module.
-* **Works anywhere Rack does.**  Sinatra, Roda, Hanami, plain `config.ru`.
+* **Works anywhere Rack does.**  Rails, Sinatra, Roda, Hanami, plain `config.ru`.
 * **Recognises a Rails application and configures itself.**  A Railtie mounts the middleware,
   adds view helpers, reads `config/vue_live.yml`, registers rake tasks and a generator, and pins
   `vue` into importmap-rails when present.
@@ -31,46 +67,53 @@ without tying itself to Rails or to any asset pipeline:
 ```ruby
 # Gemfile
 gem 'vue_live'
+# Until the first release is on RubyGems:
+# gem 'vue_live', github: 'danielpclark/vue-live'
 ```
 
-Requires Ruby 3.0+.  Node.js is **not** required unless you opt into the Node backend (any
-maintained Node.js works; see the TypeScript note below).
+Requires Ruby 3.0+.  Node.js is **not** required unless you opt into the
+[Node backend](#compiler-backends).
 
 ## Quick start: Rails
 
 ```sh
-bin/rails generate vue_live:install        # config/vue_live.yml + app/vue/HelloVueLive.vue
+bin/rails generate vue_live:install
 ```
 
-Then in any view:
+The generator writes `config/vue_live.yml` and an example `app/vue/HelloVueLive.vue`.  Pass
+`--node` to also install the Node backend, or `--skip-example` to leave `app/vue/` empty.
+
+Render the import map once, in your layout's `<head>`, and mount components from any view:
 
 ```erb
-<%= vue_live_import_map_tag %>                    <%# omit when you use importmap-rails %>
+<%# app/views/layouts/application.html.erb %>
+<%= vue_live_import_map_tag %>   <%# omit when you use importmap-rails, see below %>
+
+<%# app/views/pages/home.html.erb %>
 <%= vue_live_mount_tag 'HelloVueLive.vue', '#app', props: { name: current_user.name }, element: true %>
 ```
 
 That is the whole setup.  `app/vue/HelloVueLive.vue` is compiled on first request and served at
-`/vue/HelloVueLive.vue.js`; in development it recompiles whenever the file changes and the page
+`/vue/HelloVueLive.vue.js`.  In development it recompiles whenever the file changes and the page
 reloads itself.
 
-Settings can live in `config/vue_live.yml` (written by the generator) or in Ruby:
+Settings live in `config/vue_live.yml` (written by the generator) or in Ruby, which takes
+precedence:
 
 ```ruby
 # config/application.rb
-config.vue_live.source_path = 'app/components'   # default app/vue
-config.vue_live.prefix      = '/components'      # default /vue
-config.vue_live.compiler    = :node              # :ruby (default-ish), :node, :auto (default)
-config.vue_live.cache       = :file              # :memory (default), :file, :none
+config.vue_live.source_path = 'app/components'   # default: app/vue
+config.vue_live.prefix      = '/components'      # default: /vue
+config.vue_live.compiler    = :node              # :auto (default), :ruby or :node
+config.vue_live.cache       = :file              # :memory (default), :file or :none
 ```
-
-Rake tasks: `vue_live:precompile`, `vue_live:clobber`, `vue_live:check`, `vue_live:node_setup`.
 
 ### Rails + importmap-rails
 
-Browsers honour only one `<script type="importmap">` per page, so when importmap-rails is present
-`vue_live_import_map_tag` renders nothing and the Railtie pins `vue` into *your* import map instead
-(`Rails.application.importmap.packages['vue']`).  Keep using `javascript_importmap_tags`.
-Set `config.vue_live.importmap_pin = false` to opt out.
+Browsers honour only one `<script type="importmap">` per page.  When importmap-rails is present,
+`vue_live_import_map_tag` renders nothing and the Railtie pins `vue` into *your* import map
+instead.  Keep using `javascript_importmap_tags`.  Set `config.vue_live.importmap_pin = false` to
+opt out and manage the two separately.
 
 ### Rails + Sprockets / Propshaft / Webpacker / jsbundling
 
@@ -87,8 +130,8 @@ require 'sinatra/base'
 require 'vue_live/sinatra'
 
 class App < Sinatra::Base
+  set :vue_live, source_path: 'app/vue', prefix: '/vue'   # optional, must come before register
   register VueLive::Sinatra
-  set :vue_live, source_path: 'app/vue', prefix: '/vue'   # optional
 
   get '/' do
     <<~HTML
@@ -100,7 +143,10 @@ class App < Sinatra::Base
 end
 ```
 
+`register` reads `settings.vue_live`, mounts the middleware and adds the helpers, so any
+`set :vue_live` has to come first.  `config/vue_live.yml` is read as well, if present.
 Classic-style apps (`require 'sinatra'`) call `register VueLive::Sinatra` at the top level.
+
 `vue-live init` scaffolds `config/vue_live.yml` and `app/vue/HelloVueLive.vue` in any project.
 
 ## Quick start: plain Rack
@@ -117,20 +163,26 @@ run MyApp
 
 Include `VueLive::Helpers` wherever you render HTML to get the tag helpers.
 
-## What a component looks like
+## Writing components
+
+A component is an ordinary Vue SFC.  Relative imports to other components and to plain `.js`
+files under the component root just work:
 
 ```vue
 <template>
   <button class="counter" @click="count++">{{ label }}: {{ count }}</button>
+  <Child />
 </template>
 
 <script>
-import Child from './Child.vue'          // relative imports to other components just work
+import Child from './nested/Child.vue'
+import { shout } from './shared/util.js'
 
 export default {
   components: { Child },
   props: { label: String },
-  data() { return { count: 0 } }
+  data() { return { count: 0 } },
+  methods: { yell() { alert(shout(this.label)) } }
 }
 </script>
 
@@ -142,9 +194,10 @@ export default {
 With the Ruby backend the served module is, in essence:
 
 ```js
-import Child from './Child.vue.js'
-const __sfc__ = { components: { Child }, props: { label: String }, data() { return { count: 0 } } }
-__sfc__.template = "<button class=\"counter\" @click=\"count++\">{{ label }}: {{ count }}</button>"
+import Child from './nested/Child.vue.js?v=9c1e…'
+import { shout } from './shared/util.js?v=1718-412'
+const __sfc__ = { components: { Child }, props: { label: String }, data() { return { count: 0 } }, methods: { … } }
+__sfc__.template = "<button class=\"counter\" @click=\"count++\">{{ label }}: {{ count }}</button>\n<Child />"
 __sfc__.__scopeId = "data-v-5d1a9f3c"
 export default __sfc__
 /* + a few lines that register ".counter[data-v-5d1a9f3c] { color: #42b883 }" once */
@@ -154,17 +207,75 @@ Vue compiles the template string in the browser (so the import map must point at
 `vue.esm-browser.js`, which is the default) and applies the scope id in its renderer, so scoped
 styles need no build step either.
 
+**Shared files.**  Anything under `source_path` with an allowed extension is served as-is from the
+same prefix: `.js` and `.mjs` modules, `.css`, `.json`, images and fonts.  So `app/vue/shared/util.js`
+is importable from any component and `app/vue/img/logo.svg` is reachable at `/vue/img/logo.svg`.
+Blocks can also point at files with `src="..."`, e.g. `<style src="./shared/theme.css">`.
+
+**Several components on one page.**  Render `vue_live_import_map_tag` once, in the layout, and as
+many `vue_live_mount_tag`s as you like with different selectors.  Each becomes its own small Vue
+app:
+
+```erb
+<%= vue_live_mount_tag 'Search.vue', '#search', element: true %>
+<%= vue_live_mount_tag 'Cart.vue',   '#cart',   props: { items: @cart.as_json }, element: true %>
+```
+
+**Props** are passed as JSON, so anything `JSON.generate` accepts works.  `element: true` renders
+the mount `<div>` for you; leave it off when the element is already in your markup.
+
+## Pinia, Vue Router and other packages
+
+Components can import any bare specifier that the page's import map resolves.  Add entries with
+`import_map` in `config/vue_live.yml` (or `config.vue_live.import_map`), or per page with
+`vue_live_import_map_tag(imports: { ... })`:
+
+```yaml
+default:
+  import_map:
+    pinia:      https://esm.sh/pinia@3?external=vue
+    vue-router: https://esm.sh/vue-router@4?external=vue
+```
+
+`?external=vue` keeps the package's own `import ... from 'vue'` bare, so it resolves through the
+import map to the same Vue instance your components use.  Any CDN works as long as the build you
+pick does not bundle its own copy of Vue.  With importmap-rails, pin the packages there instead.
+
+Then write the mount script yourself with `vue_live_module_tag` and `vue_live_path`:
+
+```erb
+<div id="app"></div>
+<%= vue_live_module_tag "
+  import { createApp } from 'vue'
+  import { createPinia } from 'pinia'
+  import App from '#{vue_live_path('App.vue')}'
+
+  createApp(App).use(createPinia()).mount('#app')
+" %>
+```
+
+Inside components, `import { defineStore } from 'pinia'` and `import { useRouter } from 'vue-router'`
+work exactly as they would under a bundler.  Under Rails the module tag picks up the CSP nonce
+automatically.
+
 ## Helpers
 
 | Helper | Purpose |
 | --- | --- |
-| `vue_live_import_map_tag(imports: {})` | `<script type="importmap">` mapping `vue` (plus `config.import_map` and `imports`) |
-| `vue_live_mount_tag(component, selector = '#app', props:, plugins:, element:, nonce:)` | `<script type="module">` that imports and mounts the component |
-| `vue_live_module_tag(js)` | `<script type="module">` for your own code |
-| `vue_live_path(component)` | `/vue/App.vue.js?v=<digest>`, from the manifest when precompiled |
-| `vue_live_tags(component, selector, **)` | import map + mount tag in one call |
+| `vue_live_import_map_tag(imports: {})` | `<script type="importmap">` mapping `vue` plus `config.import_map` and `imports`.  Once per page, before any module script.  Renders nothing under importmap-rails. |
+| `vue_live_mount_tag(component, selector = '#app', props: {}, element: false, plugins: [], nonce: nil)` | `<script type="module">` that imports the component and mounts it on `selector`.  Adds the live-reload client in development. |
+| `vue_live_module_tag(js)` | `<script type="module">` for your own code (custom mounts, routers, stores). |
+| `vue_live_path(component)` | `/vue/App.vue.js?v=<digest>`, read from the manifest when precompiled. |
+| `vue_live_tags(component, selector, **)` | Import map + mount tag in one call, for single-component pages. |
+| `vue_live_reload_tag` | The live-reload client on its own.  Renders nothing when `live_reload` is off. |
 
-Under Rails the helpers are `html_safe` and pick up the CSP nonce automatically.
+`plugins:` takes JavaScript expressions that are appended as `app.use(...)` calls.  The generated
+script imports only `vue` and the component, so this suits globals you have already loaded; for
+anything that needs its own import, write the mount script with `vue_live_module_tag` as shown
+above.
+
+Under Rails the helpers return `html_safe` strings and pick up the CSP nonce automatically.
+Outside Rails they return plain strings; pass `nonce:` yourself if you use a CSP.
 
 ## Compiler backends
 
@@ -185,9 +296,9 @@ Under Rails the helpers are `html_safe` and pick up the CSP nonce automatically.
 with a clear error naming the feature when Node is unavailable.
 
 The Node backend keeps one `node compile.js --server` worker per configuration, so after the
-first compile (which includes Node's start-up, roughly 400 ms) each component takes a few
-milliseconds.  The worker is restarted automatically if it dies; set `node_worker: false` to spawn
-a process per compile instead.
+first compile (which includes Node's start-up) each component takes a few milliseconds.  The
+worker is restarted automatically if it dies; set `node_worker: false` to spawn a process per
+compile instead.
 
 Enable the Node backend with:
 
@@ -197,15 +308,16 @@ vue-live node-setup --with sass     # plus preprocessors you use
 bin/rails vue_live:node_setup       # the same, under Rails
 ```
 
+Installing `vue` locally also makes `vue_live` serve it from `/vue/-/vue.esm-browser.js` instead
+of the CDN.  If the [webpacker_cli](https://github.com/danielpclark/webpacker-cli) gem is
+installed its package manager detection is reused, so projects already built with it need
+nothing extra.
+
 **TypeScript.**  Node.js 22.13+ strips types itself.  On older Node.js a transpiler package is
 needed; `vue-live node-setup` adds [sucrase](https://github.com/alangpierce/sucrase) automatically
-in that case (pure JavaScript, keeps line numbers so source maps stay exact), and
-`VUE_LIVE_TS_TRANSPILER=node|sucrase|esbuild|typescript|babel` pins one when several are installed.
-`vue-live check` warns when a Node.js that cannot strip types has no transpiler installed.
-
-If the [webpacker_cli](https://github.com/danielpclark/webpacker-cli) gem is installed its package
-manager detection is reused, so projects already built with it need nothing extra.  Installing
-`vue` locally also makes `vue_live` serve it from `/vue/-/vue.esm-browser.js` instead of the CDN.
+in that case (pure JavaScript, keeps line numbers so source maps stay exact).
+`VUE_LIVE_TS_TRANSPILER=node|sucrase|esbuild|typescript|babel` pins one when several are
+installed, and `vue-live check` warns when a Node.js that cannot strip types has no transpiler.
 
 ## Development: live reload, errors, source maps
 
@@ -221,7 +333,7 @@ manager detection is reused, so projects already built with it need nothing extr
   backend merges `@vue/compiler-sfc`'s script and template maps, so stack traces and breakpoints
   land in the `.vue` file.
 
-## Caching and production
+## Caching, production and deployment
 
 * `reload` (default: on outside production) compares mtimes on every request and recompiles
   changed files, including `src="..."` dependencies and imported siblings.
@@ -230,15 +342,46 @@ manager detection is reused, so projects already built with it need nothing extr
   be served with `Cache-Control: immutable`.  A child's digest is part of its parent's code, so a
   change anywhere propagates up to the URL the page requests.  Import cycles are handled (the
   back edge stays undigested and revalidates by ETag).
-* `cache: :memory` keeps compiled modules per process; `cache: :file` also writes them to
-  `tmp/cache/vue_live` so Puma workers and restarts share the work.
+* `cache: :memory` (default) keeps compiled modules per process.  `cache: :file` also writes them
+  to `tmp/cache/vue_live` so Puma workers and restarts share the work.
 * Responses carry an `ETag`; URLs from `vue_live_path` include `?v=<digest>` and are served with
   `Cache-Control: public, max-age=31536000, immutable` in production.
-* In development a component that fails to compile is served as a module that throws a readable
-  error (and shows it in the page); in production it is a 500 with the details in the log.
-* `vue-live compile` / `rake vue_live:precompile` writes every component as a static `.vue.js`
-  file plus `manifest.json` to `public/vue`, for a CDN or `nginx`.  When the manifest exists in
-  production, `vue_live_path` reads from it.
+* In production a component that fails to compile is a 500 with the details in the log.
+* `vue-live compile` / `bin/rails vue_live:precompile` writes every component as a static
+  `.vue.js` file plus `manifest.json` to `public/vue`, for a CDN or `nginx`.  When the manifest
+  exists in production, `vue_live_path` reads URLs from it, so a web server or CDN in front of
+  `public/` serves the files and the app never compiles them.  Without one, the middleware still
+  answers from its cache.
+
+**Deploying.**  Three setups work, pick the one that fits your host:
+
+| Setup | What to do | Good for |
+| --- | --- | --- |
+| Compile at runtime, memory cache | Nothing.  Each process compiles on first request. | Read-only filesystems, small apps, few processes |
+| Compile at runtime, file cache | `cache: file` in `config/vue_live.yml`; `tmp/` must be writable. | Puma clusters, frequent restarts |
+| Precompile | Run `bin/rails vue_live:precompile` in your build (Dockerfile, CI, or `hook_assets_precompile: true`). | CDNs, `nginx` serving `public/`, zero compile cost at runtime |
+
+In production the CDN URL switches to `vue.esm-browser.prod.js` automatically, and
+`vue-live check` / `bin/rails vue_live:check` verifies that every component compiles before you ship.
+
+## Browser support and trade-offs
+
+`vue_live` relies on two browser features: native ES modules and import maps.  Import maps are
+supported in Chrome and Edge 89+, Firefox 108+ and Safari 16.4+ (March 2023).  Older browsers can
+be covered with [es-module-shims](https://github.com/guybedford/es-module-shims) if you need them.
+
+Serving modules unbundled is a deliberate trade:
+
+* **One request per module.**  Fine over HTTP/2 for a page that loads a few dozen files; a
+  component tree in the hundreds is better served precompiled behind a CDN, or bundled.
+* **No tree shaking or minification of your own code.**  Vue itself comes minified from the CDN;
+  your components are served as written.
+* **The Ruby backend compiles templates in the browser.**  That needs Vue's full build, which is
+  larger than the runtime-only build, and costs a little CPU on first render.  The Node backend
+  precompiles templates to render functions and removes both costs.
+
+If you are already running Vite or esbuild and are happy with it, keep it.  `vue_live` is for
+the many apps where a build step is the only reason Node.js is installed.
 
 ## Vue 2
 
@@ -248,6 +391,9 @@ The Ruby backend's output is also valid for Vue 2.7's full build (`_scopeId` is 
 so Vue 3 is the default and the only version the Node backend supports.
 
 ## Configuration reference
+
+Values come from built-in defaults, then `config/vue_live.yml` (the `default` section merged with
+the current environment's section), then Ruby (`VueLive.configure` or `config.vue_live`).
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -261,26 +407,46 @@ so Vue 3 is the default and the only version the Node backend supports.
 | `vue_version` | pinned 3.x | version used for the CDN URL and Vue 2 detection |
 | `import_map` | `{}` | extra import-map entries |
 | `extensions` | `.vue .js .mjs .css .json` + images/fonts | files the middleware will serve from `source_path` |
-| `node_bin` | `node` | Node executable (`VUE_LIVE_NODE`) |
+| `node_bin` | `node` | Node executable |
 | `precompile_path` | `public/vue` | output of `vue-live compile` |
-| `use_manifest` | auto | read `public/vue/manifest.json` for URLs |
-| `middleware` | `true` | mount automatically (Railtie / Sinatra) |
+| `use_manifest` | auto | read `public/vue/manifest.json` for URLs (auto: in production when it exists) |
+| `middleware` | `true` | mount automatically (Railtie / Sinatra); set `false` to `use` it yourself |
 | `importmap_pin` | `true` | pin `vue` into importmap-rails |
 | `hook_assets_precompile` | `false` | run `vue_live:precompile` with `assets:precompile` |
 | `inject_styles` | `true` | emit `<style>` blocks into the module |
 | `source_maps` | not production | append an inline source map to each module |
 | `node_worker` | `true` | keep one long-lived Node worker instead of a process per compile |
-| `live_reload` / `live_reload_interval` | follows `reload` / `0.5` | SSE live reload and its scan interval |
+| `live_reload` / `live_reload_interval` | follows `reload` / `0.5` | SSE live reload and its scan interval in seconds |
 | `digest_imports` | `true` | add `?v=<digest>` to relative imports inside modules |
 
-Environment: `VUE_LIVE_ENV`, `RAILS_ENV`, `RACK_ENV`, `APP_ENV` (default `development`).
+Environment variables:
+
+| Variable | Meaning |
+| --- | --- |
+| `VUE_LIVE_ENV`, `RAILS_ENV`, `RACK_ENV`, `APP_ENV` | environment name, first one set wins (default `development`) |
+| `VUE_LIVE_NODE` | Node executable, same as `node_bin` |
+| `VUE_LIVE_TS_TRANSPILER` | `node`, `sucrase`, `esbuild`, `typescript` or `babel` |
+
+## Command line and rake tasks
+
+The gem ships a `vue-live` executable for any project and the same operations as rake tasks
+under Rails:
+
+| `vue-live` | Rails | Does |
+| --- | --- | --- |
+| `init [--force] [--node]` | `bin/rails generate vue_live:install [--node] [--skip-example]` | create `config/vue_live.yml` and `app/vue/HelloVueLive.vue` |
+| `compile [--out DIR]` | `bin/rails vue_live:precompile` | write static `.vue.js` modules + `manifest.json` |
+| `clobber` | `bin/rails vue_live:clobber` | remove precompiled output and the compile cache |
+| `check` | `bin/rails vue_live:check` | compile every component and verify the Node toolchain; exits non-zero on problems |
+| `node-setup [--with pkg,pkg]` | `bin/rails vue_live:node_setup` | install `@vue/compiler-sfc` and `vue` (plus sucrase when Node.js < 22.13) |
+| `info` | | print versions and the resolved settings |
 
 ## Security notes
 
 Everything under `source_path` with an allowed extension is public.  Keep secrets out of it.
 Paths are normalised and confined to that directory; dot-files and unknown extensions are refused.
 
-## Development
+## Contributing
 
 ```sh
 bundle install

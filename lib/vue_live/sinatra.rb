@@ -7,8 +7,8 @@ module VueLive
   #
   #   require 'vue_live/sinatra'
   #   class App < Sinatra::Base
+  #     set :vue_live, source_path: 'app/vue', prefix: '/vue'   # optional, before register
   #     register VueLive::Sinatra
-  #     set :vue_live, source_path: 'app/vue', prefix: '/vue'   # optional
   #   end
   #
   # Classic-style apps call `register VueLive::Sinatra` at the top level.
