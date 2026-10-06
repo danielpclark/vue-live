@@ -88,18 +88,18 @@ module VueLive
       true
     end
 
-    # Human-readable status for `vue-live check`.
+    # Human-readable status for `vue_live check`.
     def problems(config = VueLive.config)
       problems = []
       problems << "component directory does not exist: #{config.source_dir}" unless File.directory?(config.source_dir)
       if %i[node].include?(config.compiler.to_sym)
         problems << 'Node.js was not found in PATH (required by compiler: node)' unless node_version(config)
-        problems << '@vue/compiler-sfc is not installed (run `vue-live node-setup`)' unless compiler_sfc_version(config.root)
+        problems << '@vue/compiler-sfc is not installed (run `vue_live node-setup`)' unless compiler_sfc_version(config.root)
       end
       if %i[node auto].include?(config.compiler.to_sym) && node_version(config) && !node_strips_types?(config) &&
          installed_ts_transpilers(config.root).empty?
         problems << "Node.js #{node_version(config)} cannot strip TypeScript and no transpiler is installed; " \
-                    '<script lang="ts"> components will fail (run `vue-live node-setup --with sucrase`)'
+                    '<script lang="ts"> components will fail (run `vue_live node-setup --with sucrase`)'
       end
       problems
     end

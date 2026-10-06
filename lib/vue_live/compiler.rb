@@ -40,7 +40,7 @@ module VueLive
         else
           raise UnsupportedFeature.new(
             "uses #{descriptor.advanced_features.join(', ')}, which the pure Ruby compiler cannot handle. " \
-            'Install Node.js and @vue/compiler-sfc (`vue-live node-setup`) to enable the Node backend, ' \
+            'Install Node.js and @vue/compiler-sfc (`vue_live node-setup`) to enable the Node backend,' \
             'or rewrite the component with a plain <script> / <style> block.',
             file: descriptor.filename
           )

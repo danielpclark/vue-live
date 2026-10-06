@@ -17,7 +17,7 @@ Gem::Specification.new do |spec|
     (via @vue/compiler-sfc) adds <script setup>, TypeScript and CSS preprocessors.
   DESC
   spec.licenses              = ['MIT', 'Apache-2.0']
-  spec.homepage              = 'https://github.com/danielpclark/vue-live'
+  spec.homepage              = 'https://github.com/danielpclark/vue_live'
   spec.required_ruby_version = '>= 3.0'
 
   spec.metadata['source_code_uri'] = spec.homepage
@@ -29,7 +29,7 @@ Gem::Specification.new do |spec|
     Dir['lib/**/*', 'exe/*', 'LICENSE-*', 'README.md', 'CHANGELOG.md'].select { |f| File.file?(f) }
   end
   spec.bindir        = 'exe'
-  spec.executables   = ['vue-live']
+  spec.executables   = ['vue_live']
   spec.require_paths = ['lib']
 
   # No runtime dependencies on purpose: the gem must drop into any Ruby project.

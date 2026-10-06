@@ -46,7 +46,7 @@ module VueLive
     attr_accessor :node_bin
     # Allowed file extensions under +source_path+.
     attr_accessor :extensions
-    # Output directory for +vue-live compile+ (precompiled, static ES modules).
+    # Output directory for +vue_live compile+ (precompiled, static ES modules).
     attr_accessor :precompile_path
     # Use public/vue/manifest.json for URLs instead of the live middleware.  nil = auto
     # (true in production when the manifest exists).

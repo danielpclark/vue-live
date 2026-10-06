@@ -1,6 +1,6 @@
 # vue_live
 
-[![CI](https://github.com/danielpclark/vue-live/actions/workflows/ci.yml/badge.svg)](https://github.com/danielpclark/vue-live/actions/workflows/ci.yml)
+[![CI](https://github.com/danielpclark/vue_live/actions/workflows/ci.yml/badge.svg)](https://github.com/danielpclark/vue_live/actions/workflows/ci.yml)
 
 **Serve Vue single-file components straight from Ruby, in production, with no build step.**
 
@@ -68,7 +68,7 @@ without tying itself to Rails or to any asset pipeline.
 # Gemfile
 gem 'vue_live'
 # Until the first release is on RubyGems:
-# gem 'vue_live', github: 'danielpclark/vue-live'
+# gem 'vue_live', github: 'danielpclark/vue_live'
 ```
 
 Requires Ruby 3.0+.  Node.js is **not** required unless you opt into the
@@ -147,7 +147,7 @@ end
 `set :vue_live` has to come first.  `config/vue_live.yml` is read as well, if present.
 Classic-style apps (`require 'sinatra'`) call `register VueLive::Sinatra` at the top level.
 
-`vue-live init` scaffolds `config/vue_live.yml` and `app/vue/HelloVueLive.vue` in any project.
+`vue_live init` scaffolds `config/vue_live.yml` and `app/vue/HelloVueLive.vue` in any project.
 
 ## Quick start: plain Rack
 
@@ -303,8 +303,8 @@ compile instead.
 Enable the Node backend with:
 
 ```sh
-vue-live node-setup                 # npm/yarn add @vue/compiler-sfc vue
-vue-live node-setup --with sass     # plus preprocessors you use
+vue_live node-setup                 # npm/yarn add @vue/compiler-sfc vue
+vue_live node-setup --with sass     # plus preprocessors you use
 bin/rails vue_live:node_setup       # the same, under Rails
 ```
 
@@ -314,10 +314,10 @@ installed its package manager detection is reused, so projects already built wit
 nothing extra.
 
 **TypeScript.**  Node.js 22.13+ strips types itself.  On older Node.js a transpiler package is
-needed; `vue-live node-setup` adds [sucrase](https://github.com/alangpierce/sucrase) automatically
+needed; `vue_live node-setup` adds [sucrase](https://github.com/alangpierce/sucrase) automatically
 in that case (pure JavaScript, keeps line numbers so source maps stay exact).
 `VUE_LIVE_TS_TRANSPILER=node|sucrase|esbuild|typescript|babel` pins one when several are
-installed, and `vue-live check` warns when a Node.js that cannot strip types has no transpiler.
+installed, and `vue_live check` warns when a Node.js that cannot strip types has no transpiler.
 
 ## Development: live reload, errors, source maps
 
@@ -347,7 +347,7 @@ installed, and `vue-live check` warns when a Node.js that cannot strip types has
 * Responses carry an `ETag`; URLs from `vue_live_path` include `?v=<digest>` and are served with
   `Cache-Control: public, max-age=31536000, immutable` in production.
 * In production a component that fails to compile is a 500 with the details in the log.
-* `vue-live compile` / `bin/rails vue_live:precompile` writes every component as a static
+* `vue_live compile` / `bin/rails vue_live:precompile` writes every component as a static
   `.vue.js` file plus `manifest.json` to `public/vue`, for a CDN or `nginx`.  When the manifest
   exists in production, `vue_live_path` reads URLs from it, so a web server or CDN in front of
   `public/` serves the files and the app never compiles them.  Without one, the middleware still
@@ -362,7 +362,7 @@ installed, and `vue-live check` warns when a Node.js that cannot strip types has
 | Precompile | Run `bin/rails vue_live:precompile` in your build (Dockerfile, CI, or `hook_assets_precompile: true`). | CDNs, `nginx` serving `public/`, zero compile cost at runtime |
 
 In production the CDN URL switches to `vue.esm-browser.prod.js` automatically, and
-`vue-live check` / `bin/rails vue_live:check` verifies that every component compiles before you ship.
+`vue_live check` / `bin/rails vue_live:check` verifies that every component compiles before you ship.
 
 ## Browser support and trade-offs
 
@@ -408,7 +408,7 @@ the current environment's section), then Ruby (`VueLive.configure` or `config.vu
 | `import_map` | `{}` | extra import-map entries |
 | `extensions` | `.vue .js .mjs .css .json` + images/fonts | files the middleware will serve from `source_path` |
 | `node_bin` | `node` | Node executable |
-| `precompile_path` | `public/vue` | output of `vue-live compile` |
+| `precompile_path` | `public/vue` | output of `vue_live compile` |
 | `use_manifest` | auto | read `public/vue/manifest.json` for URLs (auto: in production when it exists) |
 | `middleware` | `true` | mount automatically (Railtie / Sinatra); set `false` to `use` it yourself |
 | `importmap_pin` | `true` | pin `vue` into importmap-rails |
@@ -429,10 +429,10 @@ Environment variables:
 
 ## Command line and rake tasks
 
-The gem ships a `vue-live` executable for any project and the same operations as rake tasks
+The gem ships a `vue_live` executable for any project and the same operations as rake tasks
 under Rails:
 
-| `vue-live` | Rails | Does |
+| `vue_live` | Rails | Does |
 | --- | --- | --- |
 | `init [--force] [--node]` | `bin/rails generate vue_live:install [--node] [--skip-example]` | create `config/vue_live.yml` and `app/vue/HelloVueLive.vue` |
 | `compile [--out DIR]` | `bin/rails vue_live:precompile` | write static `.vue.js` modules + `manifest.json` |

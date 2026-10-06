@@ -78,7 +78,7 @@ class CompilerTest < Minitest::Test
     @config.node_bin = '/nonexistent/node'
     VueLive::Compiler::Node.reset!
     e = assert_raises(VueLive::UnsupportedFeature) { compile('<template><a/></template><script setup>const a = 1</script>') }
-    assert_match(/vue-live node-setup/, e.message)
+    assert_match(/vue_live node-setup/, e.message)
   end
 
   def test_src_attributes_resolve_siblings

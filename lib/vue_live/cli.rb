@@ -4,14 +4,14 @@ require 'fileutils'
 require_relative '../vue_live'
 
 module VueLive
-  # The `vue-live` executable.
+  # The `vue_live` executable.
   class CLI
     TEMPLATE_DIR = File.expand_path('templates', __dir__)
 
     USAGE = <<~TEXT.freeze
-      vue-live #{VueLive::VERSION}
+      vue_live #{VueLive::VERSION}
 
-      Usage: vue-live <command> [options]
+      Usage: vue_live <command> [options]
 
       Commands:
         init         Create config/vue_live.yml and app/vue/ with an example component
